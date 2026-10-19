@@ -1,3 +1,90 @@
-<!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Solicitare Factură</title><script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase-config.js"></script><style>body{background:#2b060b;min-height:100vh}</style></head><body class="p-4 text-slate-100"><main class="max-w-3xl mx-auto bg-stone-900 rounded-3xl overflow-hidden"><header class="p-6 bg-red-950 flex justify-between"><div><h1 class="text-xl font-bold">Solicitare Factură Arbitraj</h1><p class="text-sm">Mai multe meciuri într-o solicitare.</p></div><a href="admin.html">Administrare</a></header><section id="auth" class="p-6"><form id="authForm" class="space-y-3"><input id="email" type="email" required placeholder="E-mail" class="w-full p-3 bg-stone-800"><input id="password" type="password" required placeholder="Parolă" class="w-full p-3 bg-stone-800"><button class="p-3 bg-red-800">Intră în cont</button><button id="register" type="button" class="p-3 border">Creează cont</button></form></section><section id="app" class="hidden"><div class="p-4 flex justify-between"><span id="identity"></span><button id="logout">Deconectare</button></div><form id="form" class="p-6 space-y-4"><section class="p-4 bg-stone-950 rounded-xl space-y-3"><b>Date comune</b><div class="grid grid-cols-2 gap-3"><input id="nume" required placeholder="Nume arbitru" class="p-3 bg-stone-800"><input id="telefon" required placeholder="Telefon" class="p-3 bg-stone-800"><select id="tip" class="p-3 bg-stone-800"><option value="ARBITRU">Arbitru</option><option value="AJF">AJF</option></select><input id="cui" required placeholder="CUI / CIF club" class="p-3 bg-stone-800"></div><label><input type="radio" name="plata" value="CASH" checked> Numerar</label><label><input type="radio" name="plata" value="BANK"> Transfer bancar</label><input id="iban" placeholder="IBAN (obligatoriu la transfer)" class="w-full p-3 bg-stone-800"></section><div class="flex justify-between"><b>Meciuri și roluri</b><button id="add" type="button" class="bg-red-800 px-3 py-2">+ Adaugă meci</button></div><div id="entries" class="space-y-3"></div><p>Total net: <b id="net">0,00</b> lei</p><button class="w-full p-4 bg-red-800 font-bold">Trimite solicitarea</button></form></section></main><template id="entry"><article class="entry p-4 bg-stone-950 rounded-xl space-y-2"><button type="button" class="remove text-red-300">Elimină meci</button><div class="grid grid-cols-2 gap-2"><input class="campionat p-2 bg-stone-800" required placeholder="Campionat"><select class="functie p-2 bg-stone-800"><option>Arbitru</option><option>Arbitru Asistent</option></select><input class="echipa1 p-2 bg-stone-800" required placeholder="Echipa gazdă"><input class="echipa2 p-2 bg-stone-800" required placeholder="Echipa oaspete"><input class="data p-2 bg-stone-800" required type="date"><input class="suma p-2 bg-stone-800" required type="number" min="1" step="0.01" placeholder="Sumă brută"></div></article></template><script>
-const c=window.SUPABASE_CONFIG||{},$=x=>document.getElementById(x);let sb,u;const m=x=>new Intl.NumberFormat('ro-RO',{minimumFractionDigits:2}).format(x||0);function add(){const n=$('entry').content.cloneNode(true),e=n.querySelector('.entry');e.querySelector('.remove').onclick=()=>{if($('entries').children.length>1)e.remove();total()};e.querySelector('.suma').oninput=total;$('entries').append(n)}function total(){let t=0;document.querySelectorAll('.suma').forEach(x=>t+=(Number(x.value)||0)*.8-10);$('net').textContent=m(Math.max(0,t))}async function show(s){u=s?.user;$('auth').classList.toggle('hidden',!!u);$('app').classList.toggle('hidden',!u);if(u)$('identity').textContent=u.email}async function init(){sb=window.supabase.createClient(c.url,c.publishableKey);add();$('add').onclick=add;$('logout').onclick=()=>sb.auth.signOut();$('authForm').onsubmit=async e=>{e.preventDefault();const {error}=await sb.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)alert(error.message)};$('register').onclick=async()=>{const {error}=await sb.auth.signUp({email:$('email').value,password:$('password').value});alert(error||'Verifică e-mailul.')};$('form').onsubmit=async e=>{e.preventDefault();const pay=document.querySelector('[name=plata]:checked').value,entries=[...document.querySelectorAll('.entry')].map(e=>{const s=Number(e.querySelector('.suma').value);return{campionat:e.querySelector('.campionat').value,echipa1:e.querySelector('.echipa1').value,echipa2:e.querySelector('.echipa2').value,data_meci:e.querySelector('.data').value,functie:e.querySelector('.functie').value,suma_totala:s,suma_neta:s*.8-10}}),gross=entries.reduce((a,x)=>a+x.suma_totala,0),net=entries.reduce((a,x)=>a+x.suma_neta,0);const {data,error}=await sb.from('invoices').insert({user_id:u.id,solicitant_tip:$('tip').value,nume_arbitru:$('nume').value,telefon_arbitru:$('telefon').value,iban_arbitru:pay==='BANK'?$('iban').value:null,cui:$('cui').value,metoda_plata:pay,necesita_chitanta:pay==='CASH',suma_totala:gross,suma_neta:net}).select('id').single();if(error)return alert(error.message);const r=await sb.from('invoice_entries').insert(entries.map(x=>({...x,invoice_id:data.id})));if(r.error)return alert(r.error.message);alert('Solicitarea a fost trimisă.');$('form').reset();$('entries').replaceChildren();add();total()};const {data:{session}}=await sb.auth.getSession();show(session);sb.auth.onAuthStateChange((_e,s)=>show(s))}init();
-</script></body></html>
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Solicitare factură arbitraj</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <style>body{background:linear-gradient(135deg,#2b060b,#120204);min-height:100vh}</style>
+</head>
+<body class="p-4 md:p-8 text-slate-100 font-sans">
+  <main class="max-w-3xl mx-auto overflow-hidden rounded-3xl border border-red-900/50 bg-stone-900 shadow-2xl">
+    <header class="flex items-start justify-between gap-4 bg-gradient-to-r from-red-900 via-red-950 to-stone-900 p-6">
+      <div><h1 class="text-xl font-bold">Solicitare factură arbitraj</h1><p class="mt-1 text-sm text-red-200/80">Adaugă unul sau mai multe meciuri într-o singură solicitare.</p></div>
+      <a href="admin.html" class="rounded-lg border border-red-700 px-3 py-2 text-xs font-bold">Administrare</a>
+    </header>
+    <section id="auth" class="p-6">
+      <form id="authForm" class="space-y-3">
+        <input id="email" type="email" autocomplete="email" required placeholder="E-mail" class="w-full rounded-lg bg-stone-800 p-3">
+        <input id="password" type="password" autocomplete="current-password" required minlength="8" placeholder="Parolă" class="w-full rounded-lg bg-stone-800 p-3">
+        <div class="flex flex-wrap gap-3"><button class="rounded-lg bg-red-800 px-4 py-3 font-bold">Intră în cont</button><button id="register" type="button" class="rounded-lg border border-stone-600 px-4 py-3">Creează cont</button></div>
+        <p id="authMessage" class="text-sm text-red-200"></p>
+      </form>
+    </section>
+    <section id="app" class="hidden">
+      <div class="flex items-center justify-between border-y border-stone-700 px-6 py-4 text-sm"><span id="identity"></span><div class="flex gap-4"><a href="istoric.html" class="text-red-200">Istoric facturi</a><button id="logout" class="text-red-200">Deconectare</button></div></div>
+      <form id="form" class="space-y-5 p-6">
+        <section class="space-y-3 rounded-xl bg-stone-950 p-4">
+          <h2 class="font-bold">Date comune pentru toate meciurile</h2>
+          <div class="grid gap-3 md:grid-cols-2">
+            <input id="nume" required placeholder="Nume arbitru / solicitant" class="rounded-lg bg-stone-800 p-3">
+            <input id="telefon" required placeholder="Telefon" class="rounded-lg bg-stone-800 p-3">
+            <select id="tip" class="rounded-lg bg-stone-800 p-3"><option value="ARBITRU">Arbitru</option><option value="AJF">AJF</option></select>
+            <input id="cui" required placeholder="CUI / CIF club" class="rounded-lg bg-stone-800 p-3">
+          </div>
+          <div class="flex flex-wrap gap-4"><label><input type="radio" name="plata" value="CASH" checked> Numerar</label><label><input type="radio" name="plata" value="BANK"> Transfer bancar</label></div>
+          <p id="paymentNotice" class="hidden text-sm text-amber-200">Plățile AJF se fac exclusiv numerar.</p>
+          <input id="iban" placeholder="IBAN (obligatoriu pentru transfer bancar)" class="hidden w-full rounded-lg bg-stone-800 p-3">
+        </section>
+        <div class="flex items-center justify-between gap-4"><h2 class="font-bold">Meciuri și roluri</h2><button id="add" type="button" class="rounded-lg bg-red-800 px-3 py-2 text-sm font-bold">+ Adaugă meci</button></div>
+        <div id="entries" class="space-y-3"></div>
+        <p class="text-sm">Total brut: <b id="gross">0,00</b> lei · Total net: <b id="net">0,00</b> lei</p>
+        <p id="formMessage" class="text-sm"></p>
+        <button id="submit" class="w-full rounded-xl bg-red-800 p-4 font-bold">Trimite solicitarea</button>
+      </form>
+    </section>
+  </main>
+  <template id="entry">
+    <article class="entry space-y-3 rounded-xl border border-stone-800 bg-stone-950 p-4">
+      <div class="flex justify-between"><b class="entryTitle">Meci</b><button type="button" class="remove text-sm text-red-300">Elimină</button></div>
+      <div class="grid gap-3 md:grid-cols-2">
+        <input class="campionat rounded-lg bg-stone-800 p-3" required placeholder="Campionat">
+        <select class="functie rounded-lg bg-stone-800 p-3"><option value="Arbitru">Arbitru</option><option value="Arbitru Asistent">Arbitru Asistent</option></select>
+        <input class="echipa1 rounded-lg bg-stone-800 p-3" required placeholder="Echipa gazdă">
+        <input class="echipa2 rounded-lg bg-stone-800 p-3" required placeholder="Echipa oaspete">
+        <input class="data rounded-lg bg-stone-800 p-3" required type="date">
+        <input class="suma rounded-lg bg-stone-800 p-3" required type="number" min="0.01" step="0.01" placeholder="Sumă brută (lei)">
+      </div>
+    </article>
+  </template>
+<script>
+const cfg=window.SUPABASE_CONFIG||{},$=id=>document.getElementById(id);
+let sb,user;
+const lei=value=>new Intl.NumberFormat('ro-RO',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value||0));
+function entries(){return [...document.querySelectorAll('.entry')].map(card=>{const total=Number(card.querySelector('.suma').value);return {campionat:card.querySelector('.campionat').value.trim(),echipa1:card.querySelector('.echipa1').value.trim(),echipa2:card.querySelector('.echipa2').value.trim(),data_meci:card.querySelector('.data').value,functie:card.querySelector('.functie').value,suma_totala:total,suma_neta:Math.max(0,total*.8-10)}})}
+function refreshEntryTitles(){[...document.querySelectorAll('.entry')].forEach((node,index)=>node.querySelector('.entryTitle').textContent=`Meci ${index+1}`)}
+function updateTotal(){const all=entries(),gross=all.reduce((sum,item)=>sum+(item.suma_totala||0),0),net=all.reduce((sum,item)=>sum+(item.suma_neta||0),0);$('gross').textContent=lei(gross);$('net').textContent=lei(net)}
+function addEntry(){const fragment=$('entry').content.cloneNode(true),card=fragment.querySelector('.entry');card.querySelector('.remove').onclick=()=>{if(document.querySelectorAll('.entry').length===1)return;card.remove();refreshEntryTitles();updateTotal()};card.querySelector('.suma').oninput=updateTotal;$('entries').append(fragment);refreshEntryTitles()}
+function updatePayment(){const isAjf=$('tip').value==='AJF',bank=document.querySelector('[name="plata"][value="BANK"]'),cash=document.querySelector('[name="plata"][value="CASH"]'),iban=$('iban');bank.disabled=isAjf;if(isAjf)cash.checked=true;const isBank=bank.checked;iban.classList.toggle('hidden',!isBank);iban.required=isBank;$('paymentNotice').classList.toggle('hidden',!isAjf)}
+function message(text,warning=false){$('formMessage').textContent=text;$('formMessage').className=`text-sm ${warning?'text-amber-200':'text-emerald-300'}`}
+async function show(session){user=session?.user;$('auth').classList.toggle('hidden',!!user);$('app').classList.toggle('hidden',!user);if(user)$('identity').textContent=user.email}
+async function submit(event){event.preventDefault();const button=$('submit'),payment=document.querySelector('[name="plata"]:checked').value,all=entries();
+  if(!all.length||all.some(item=>!item.campionat||!item.echipa1||!item.echipa2||!item.data_meci||!(item.suma_totala>0)))return message('Completează toate datele fiecărui meci.',true);
+  if($('tip').value==='AJF'&&payment!=='CASH')return message('Plățile AJF se fac exclusiv numerar.',true);
+  if(payment==='BANK'&&!$('iban').value.trim())return message('Introdu IBAN-ul pentru transferul bancar.',true);
+  const gross=all.reduce((sum,item)=>sum+item.suma_totala,0),net=all.reduce((sum,item)=>sum+item.suma_neta,0),first=all[0];button.disabled=true;message('Se salvează solicitarea...');
+  const {data,error}=await sb.from('invoices').insert({user_id:user.id,solicitant_tip:$('tip').value,nume_arbitru:$('nume').value.trim(),telefon_arbitru:$('telefon').value.trim(),iban_arbitru:payment==='BANK'?$('iban').value.trim():null,cui:$('cui').value.trim(),metoda_plata:payment,necesita_chitanta:payment==='CASH',suma_totala:gross,suma_neta:net,campionat:first.campionat,echipa1:first.echipa1,echipa2:first.echipa2,data_meci:first.data_meci,functie:first.functie}).select('id').single();
+  if(error){button.disabled=false;return message(`Solicitarea nu a putut fi salvată: ${error.message}`,true)}
+  const insertEntries=await sb.from('invoice_entries').insert(all.map(item=>({...item,invoice_id:data.id})));
+  if(insertEntries.error){button.disabled=false;return message(`Solicitarea a fost creată, dar meciurile nu au putut fi adăugate: ${insertEntries.error.message}. Contactează administratorul.`,true)}
+  const notification=await sb.functions.invoke('notify-new-invoice',{body:{invoiceId:data.id}});button.disabled=false;
+  $('form').reset();$('entries').replaceChildren();addEntry();updatePayment();updateTotal();
+  if(notification.error)return message('Solicitarea a fost trimisă, însă e-mailul către administrator nu a putut fi confirmat.');
+  message('Solicitarea a fost trimisă, iar administratorul a fost notificat pe e-mail.');
+}
+async function init(){if(!cfg.url||!cfg.publishableKey)return $('authMessage').textContent='Aplicația nu este configurată.';sb=window.supabase.createClient(cfg.url,cfg.publishableKey);addEntry();$('add').onclick=addEntry;$('tip').onchange=updatePayment;document.querySelectorAll('[name="plata"]').forEach(input=>input.onchange=updatePayment);updatePayment();$('logout').onclick=()=>sb.auth.signOut();$('authForm').onsubmit=async event=>{event.preventDefault();const {error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});$('authMessage').textContent=error?.message||''};$('register').onclick=async()=>{if($('password').value.length<8)return $('authMessage').textContent='Parola trebuie să aibă cel puțin 8 caractere.';const {error}=await sb.auth.signUp({email:$('email').value.trim(),password:$('password').value});$('authMessage').textContent=error?.message||'Cont creat. Verifică e-mailul pentru confirmare.'};$('form').onsubmit=submit;const {data:{session}}=await sb.auth.getSession();show(session);sb.auth.onAuthStateChange((_event,next)=>setTimeout(()=>show(next),0))}
+init();
+</script>
+</body>
+</html>
