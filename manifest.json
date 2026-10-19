@@ -1,6 +1,6 @@
 {
-  "short_name": "Facturi",
-  "name": "Solicitare factură arbitraj",
+  "short_name": "Facturi Arbitraj",
+  "name": "Facturi Arbitraj",
   "description": "Solicitări de facturi pentru servicii de arbitraj.",
   "icons": [
     {
