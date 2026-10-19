@@ -1,0 +1,16 @@
+{
+  "short_name": "Facturi",
+  "name": "Solicitare Factura Arbitraj",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1041/1041888.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#2b060b",
+  "theme_color": "#4a0e17",
+  "display": "standalone",
+  "orientation": "portrait"
+}
