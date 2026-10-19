@@ -17,3 +17,16 @@ Never put a `service_role` key in browser code.
 - Administrators can view every request and attach/replace PDFs.
 - The `invoices` Storage bucket is private; PDFs are not embedded in database rows.
 - AJF is cash-only in both the interface and the database rule.
+
+## E-mail alerts for new requests
+
+`supabase/functions/notify-new-invoice/index.ts` is a protected Edge Function. It runs only after a request is saved and verifies the caller before reading the request data.
+
+Create a free Resend account, then add these **Supabase Edge Function Secrets**:
+
+- `RESEND_API_KEY`: the Resend API key
+- `ADMIN_NOTIFICATION_EMAIL`: `andreiorheanu@yahoo.com`
+- `NOTIFICATION_FROM_EMAIL`: a Resend-approved sender; for testing, use `Facturi Arbitraj <onboarding@resend.dev>`
+- `APP_URL`: `https://andrei-orheanu.github.io/facturi-arbitraj/admin.html`
+
+Deploy with `supabase functions deploy notify-new-invoice`, then upload the updated `index.html` to GitHub Pages. Never put those secret values in `supabase-config.js`.
