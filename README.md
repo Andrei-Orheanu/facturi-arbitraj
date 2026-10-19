@@ -18,6 +18,12 @@ Never put a `service_role` key in browser code.
 - The `invoices` Storage bucket is private; PDFs are not embedded in database rows.
 - AJF is cash-only in both the interface and the database rule.
 
+## Multiple PDF documents
+
+For an existing deployed project, run [`supabase/migrations/20261019_multiple_invoice_pdfs.sql`](supabase/migrations/20261019_multiple_invoice_pdfs.sql) once in the Supabase SQL Editor before uploading the updated HTML files. It creates the protected document list and preserves existing PDF links.
+
+Administrators can select multiple PDF files in one upload. Each file is limited to 10 MB and users can download every PDF attached to their own finalized invoice.
+
 ## E-mail alerts for new requests
 
 `supabase/functions/notify-new-invoice/index.ts` is a protected Edge Function. It runs only after a request is saved and verifies the caller before reading the request data.
