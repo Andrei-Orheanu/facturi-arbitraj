@@ -1,10 +1,11 @@
-const CACHE_NAME = 'facturi-arbitraj-v2';
+const CACHE_NAME = 'facturi-arbitraj-v3';
 const APP_SHELL = [
   './',
   './index.html',
   './istoric.html',
   './admin.html',
   './admin-istoric.html',
+  './profil.html',
   './manifest.json',
   './supabase-config.js',
   './assets/sidewalk-shade.mp3',
