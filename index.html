@@ -65,7 +65,7 @@
         </section>
         <div class="flex items-center justify-between gap-4"><h2 class="font-bold">Meciuri și roluri</h2><button id="add" type="button" class="rounded-lg bg-red-800 px-3 py-2 text-sm font-bold">+ Adaugă meci</button></div>
         <div id="entries" class="space-y-3"></div>
-        <p class="text-sm">Total brut: <b id="gross">0,00</b> lei · Total net: <b id="net">0,00</b> lei</p>
+        <p class="text-sm">Total brut: <b id="gross">0,00</b> lei · Taxe (20%): <b id="tax">0,00</b> lei · Comision factură: <b id="fee">0,00</b> lei · Total net: <b id="net">0,00</b> lei</p>
         <p id="formMessage" class="text-sm"></p>
         <button id="submit" class="w-full rounded-xl bg-red-800 p-4 font-bold">Trimite solicitarea</button>
       </form>
@@ -89,19 +89,20 @@
 const cfg=window.SUPABASE_CONFIG||{},$=id=>document.getElementById(id);
 let sb,user;
 const lei=value=>new Intl.NumberFormat('ro-RO',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value||0));
-function entries(){return [...document.querySelectorAll('.entry')].map(card=>{const total=Number(card.querySelector('.suma').value);return {campionat:card.querySelector('.campionat').value.trim(),echipa1:card.querySelector('.echipa1').value.trim(),echipa2:card.querySelector('.echipa2').value.trim(),data_meci:card.querySelector('.data').value,functie:card.querySelector('.functie').value,suma_totala:total,suma_neta:Math.max(0,total*.8-10)}})}
+const round2=value=>Math.round((Number(value)+Number.EPSILON)*100)/100;
+function entries(){return [...document.querySelectorAll('.entry')].map(card=>{const total=Number(card.querySelector('.suma').value);return {campionat:card.querySelector('.campionat').value.trim(),echipa1:card.querySelector('.echipa1').value.trim(),echipa2:card.querySelector('.echipa2').value.trim(),data_meci:card.querySelector('.data').value,functie:card.querySelector('.functie').value,suma_totala:total,suma_neta:round2(total*.8)}})}
 function refreshEntryTitles(){[...document.querySelectorAll('.entry')].forEach((node,index)=>node.querySelector('.entryTitle').textContent=`Meci ${index+1}`)}
-function updateTotal(){const all=entries(),gross=all.reduce((sum,item)=>sum+(item.suma_totala||0),0),net=all.reduce((sum,item)=>sum+(item.suma_neta||0),0);$('gross').textContent=lei(gross);$('net').textContent=lei(net)}
+function updateTotal(){const all=entries(),gross=round2(all.reduce((sum,item)=>sum+(item.suma_totala||0),0)),tax=round2(gross*.2),fee=gross>0?(document.querySelector('[name="plata"][value="BANK"]').checked?15:10):0,net=round2(gross-tax-fee);$('gross').textContent=lei(gross);$('tax').textContent=lei(tax);$('fee').textContent=lei(fee);$('net').textContent=lei(net)}
 function localToday(){const now=new Date(),offset=now.getTimezoneOffset()*60000;return new Date(now-offset).toISOString().slice(0,10)}
 function addEntry(){const fragment=$('entry').content.cloneNode(true),card=fragment.querySelector('.entry');card.querySelector('.data').max=localToday();card.querySelector('.remove').onclick=()=>{if(document.querySelectorAll('.entry').length===1)return;card.remove();refreshEntryTitles();updateTotal()};card.querySelector('.suma').oninput=updateTotal;$('entries').append(fragment);refreshEntryTitles()}
-function updatePayment(){const isBank=document.querySelector('[name="plata"][value="BANK"]').checked,iban=$('iban');iban.classList.toggle('hidden',!isBank);iban.required=isBank}
+function updatePayment(){const isBank=document.querySelector('[name="plata"][value="BANK"]').checked,iban=$('iban');iban.classList.toggle('hidden',!isBank);iban.required=isBank;updateTotal()}
 function message(text,warning=false){$('formMessage').textContent=text;$('formMessage').className=`text-sm ${warning?'text-amber-200':'text-emerald-300'}`}
 async function show(session){user=session?.user;$('auth').classList.toggle('hidden',!!user);$('app').classList.toggle('hidden',!user);$('adminLink').classList.add('hidden');if(!user)return;const currentUser=user;$('identity').textContent=currentUser.email;const {data}=await sb.from('profiles').select('role,nume,telefon,beneficiar_servicii,cui,iban,metoda_plata_preferata').eq('id',currentUser.id).maybeSingle();if(user?.id!==currentUser.id||!data)return;if(data.role==='admin')$('adminLink').classList.remove('hidden');const defaults={nume:data.nume,telefon:data.telefon,beneficiar:data.beneficiar_servicii,cui:data.cui,iban:data.iban};Object.entries(defaults).forEach(([id,value])=>{if(value&&!$(id).value)$(id).value=value});if(data.metoda_plata_preferata){const payment=document.querySelector(`[name="plata"][value="${data.metoda_plata_preferata}"]`);if(payment)payment.checked=true}updatePayment()}
 async function submit(event){event?.preventDefault();const button=$('submit'),payment=document.querySelector('[name="plata"]:checked').value,all=entries();
   if(!all.length||all.some(item=>!item.campionat||!item.echipa1||!item.echipa2||!item.data_meci||!(item.suma_totala>0)))return message('Completează toate datele fiecărui meci.',true);
   if(all.some(item=>item.data_meci>localToday()))return message('Data unui meci nu poate fi în viitor.',true);
   if(payment==='BANK'&&!$('iban').value.trim())return message('Introdu IBAN-ul pentru transferul bancar.',true);
-  const gross=all.reduce((sum,item)=>sum+item.suma_totala,0),net=all.reduce((sum,item)=>sum+item.suma_neta,0),first=all[0];button.disabled=true;message('Se salvează solicitarea...');
+  const gross=round2(all.reduce((sum,item)=>sum+item.suma_totala,0)),tax=round2(gross*.2),fee=payment==='BANK'?15:10,net=round2(gross-tax-fee),first=all[0];button.disabled=true;message('Se salvează solicitarea...');
   const {data,error}=await sb.from('invoices').insert({user_id:user.id,solicitant_tip:'ARBITRU',nume_arbitru:$('nume').value.trim(),telefon_arbitru:$('telefon').value.trim(),beneficiar_servicii:$('beneficiar').value.trim(),iban_arbitru:payment==='BANK'?$('iban').value.trim():null,cui:$('cui').value.trim(),metoda_plata:payment,necesita_chitanta:payment==='CASH',suma_totala:gross,suma_neta:net,campionat:first.campionat,echipa1:first.echipa1,echipa2:first.echipa2,data_meci:first.data_meci,functie:first.functie}).select('id').single();
   if(error){button.disabled=false;return message(`Solicitarea nu a putut fi salvată: ${error.message}`,true)}
   const insertEntries=await sb.from('invoice_entries').insert(all.map(item=>({...item,invoice_id:data.id})));
